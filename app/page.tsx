@@ -40,8 +40,19 @@ import {
 /**
  * --- BACKGROUND ANIMATION COMPONENTS ---
  */
+type Fly = {
+  id: number;
+  size: number;
+  left: number;
+  top: number;
+  duration: number;
+  delay: number;
+  flickerDuration: number;
+  opacity: number;
+};
+
 const Fireflies = () => {
-  const [flies, setFlies] = useState([]);
+  const [flies, setFlies] = useState<Fly[]>([]);
 
   useEffect(() => {
     const newFlies = Array.from({ length: 250 }).map((_, i) => ({
