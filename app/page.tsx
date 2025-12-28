@@ -52,7 +52,7 @@ type Fly = {
 };
 
 const Fireflies = () => {
-  const [flies, setFlies] = useState<Fly[]>([]);
+  const [flies, setFlies] = useState<Array<Fly>>([]);
 
   useEffect(() => {
     const newFlies = Array.from({ length: 250 }).map((_, i) => ({
