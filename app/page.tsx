@@ -111,9 +111,54 @@ const Fireflies = () => {
 /**
  * --- HELPER COMPONENTS ---
  */
-const ImageWithLoader = ({ src, alt, className, imgClassName }) => {
+type ImageWithLoaderProps = {
+  src: string;
+  alt: string;
+  className?: string;
+  imgClassName?: string;
+};
+
+const ImageWithLoader: React.FC<ImageWithLoaderProps> = ({
+  src,
+  alt,
+  className = "",
+  imgClassName = "",
+}) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    const img = imgRef.current;
+    // If the image already finished loading (cache or fast load), ensure we update state
+    if (img) {
+      if (img.complete) {
+        if (img.naturalWidth && img.naturalHeight) {
+          setIsLoaded(true);
+        } else {
+          setHasError(true);
+        }
+        return;
+      }
+    }
+
+    // fallback: if neither load nor error fires (e.g., blocked), mark as error after timeout
+    const t = setTimeout(() => {
+      if (!imgRef.current?.complete) {
+        setHasError(true);
+      }
+    }, 10000);
+
+    return () => clearTimeout(t);
+  }, [src]);
+
+  const handleLoad = () => {
+    setIsLoaded(true);
+    setHasError(false);
+  };
+  const handleError = () => {
+    setHasError(true);
+  };
 
   return (
     <div className={`relative overflow-hidden ${className} bg-white/[0.03]`}>
@@ -134,10 +179,13 @@ const ImageWithLoader = ({ src, alt, className, imgClassName }) => {
         </div>
       ) : (
         <img
+          ref={imgRef}
           src={src}
           alt={alt}
-          onLoad={() => setIsLoaded(true)}
-          onError={() => setHasError(true)}
+          onLoad={handleLoad}
+          onError={handleError}
+          loading="lazy"
+          decoding="async"
           className={`${imgClassName} transition-all duration-1000 ${
             isLoaded ? "opacity-100" : "opacity-0"
           }`}
@@ -295,7 +343,7 @@ const DATA = {
 };
 
 export default function App() {
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [visibleCount, setVisibleCount] = useState(3);
@@ -305,11 +353,13 @@ export default function App() {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
   const [volume, setVolume] = useState(0.01);
-  const audioRef = useRef(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Modal States
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedProject, setSelectedProject] = useState<
+    (typeof DATA.projects)[number] | null
+  >(null);
 
   const [formState, setFormState] = useState({
     name: "",
@@ -320,6 +370,8 @@ export default function App() {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
+    // set initial time on client mount to avoid SSR/CSR mismatch
+    setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
 
     const handleScroll = () => {
@@ -365,26 +417,32 @@ export default function App() {
     }
   }, [volume, currentTrackIndex]);
 
-  const togglePlay = (e) => {
+  const togglePlay = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (isPlaying) {
-      audioRef.current.pause();
+      audioRef.current?.pause();
     } else {
-      audioRef.current.play().catch((e) => console.log("Playback blocked"));
+      audioRef.current
+        ?.play()
+        .catch((err) => console.log("Playback blocked", err));
     }
     setIsPlaying(!isPlaying);
   };
 
-  const nextTrack = (e) => {
-    if (e) e.stopPropagation();
+  const advanceTrack = () => {
     setCurrentTrackIndex((prev) => (prev + 1) % DATA.playlist.length);
     setIsPlaying(true);
     setTimeout(() => {
-      if (audioRef.current) audioRef.current.play();
+      audioRef.current?.play();
     }, 100);
   };
 
-  const scrollToSection = (id) => {
+  const nextTrack = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    advanceTrack();
+  };
+
+  const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
       const offset = 90;
@@ -411,7 +469,7 @@ export default function App() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setTimeout(() => {
@@ -443,7 +501,7 @@ export default function App() {
       id="home"
       className="min-h-screen font-mono transition-colors duration-700 bg-[#0A0A0A] text-[#E5E5E5] relative selection:bg-[#8ca67a]/40 overflow-x-hidden"
     >
-      <audio ref={audioRef} src={currentTrack.url} onEnded={nextTrack} />
+      <audio ref={audioRef} src={currentTrack.url} onEnded={advanceTrack} />
 
       {/* --- BACKGROUND ELEMENTS --- */}
       <Fireflies />
@@ -568,7 +626,7 @@ export default function App() {
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-16 h-6 bg-[#8ca67a]/40 backdrop-blur-md -rotate-3 z-20 shadow-sm border border-[#8ca67a]/20"></div>
                     <div className="w-40 h-48 md:w-48 md:h-56 border-2 border-[#8ca67a]/30 p-2 shadow-2xl -rotate-1 lg:group-hover/photo:rotate-0 transition-transform duration-500 overflow-hidden relative">
                       <ImageWithLoader
-                        src="https://cdn.discordapp.com/attachments/1129503536531652619/1454826115007779011/IMG_4683.jpg?ex=69527fe7&is=69512e67&hm=ea16ac7718521f180320b68a41173b94ca004bf1a71e3ef00011ddaa754cad4f&"
+                        src="image/temypic.jpg"
                         alt="Temy's Profile"
                         className="w-full h-full"
                         imgClassName="w-full h-full object-cover grayscale-0 brightness-100 lg:grayscale lg:brightness-90 lg:group-hover/photo:grayscale-0 lg:group-hover/photo:brightness-100"
@@ -592,11 +650,13 @@ export default function App() {
                     TIME
                   </span>
                   <span className="text-xs md:text-sm font-black text-[#8ca67a]">
-                    {currentTime.toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                    })}
+                    {currentTime
+                      ? currentTime.toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
+                        })
+                      : "--:--:--"}
                   </span>
                 </div>
                 <div className="p-4 md:p-6 text-center text-white">
@@ -992,7 +1052,7 @@ export default function App() {
                   />
                   <textarea
                     required
-                    rows="4"
+                    rows={4}
                     placeholder="Your Message"
                     value={formState.message}
                     onChange={(e) =>
