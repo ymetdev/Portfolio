@@ -503,8 +503,18 @@ export default function App() {
     >
       <audio ref={audioRef} src={currentTrack.url} onEnded={advanceTrack} />
 
-      {/* --- BACKGROUND ELEMENTS --- */}
-      <Fireflies />
+      {/* --- BACKGROUND ELEMENTS (reduced) --- */}
+      <style>{`
+        @keyframes zzz-float {
+          0% { transform: translateY(0) scale(0.8); opacity: 0; }
+          50% { opacity: 0.8; }
+          100% { transform: translateY(-20px) scale(1.2); opacity: 0; }
+        }
+        @keyframes cat-breathe {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+      `}</style>
 
       {/* Glow Decor */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
